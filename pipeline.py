@@ -6,13 +6,38 @@ from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
 
 # 1. OPTIMAL SHORTS SETTINGS
 CLIP_DURATION = 27  # 15-35s performs best (27s ideal)
 MAX_CREATORS = 5    # Track top 5 creators
 POST_TIMES = [14, 20]  # 2PM & 8PM UTC (best posting times)
 
-# 2. FIND TRENDING GAMING STREAMS
+def get_authenticated_service():
+    """Handle authentication with proper credential refresh"""
+    creds = None
+    
+    # Try to load from environment credentials first
+    if os.path.exists(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')):
+        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS']) as f:
+            creds_info = json.load(f)
+            creds = Credentials.from_authorized_user_info(creds_info)
+    
+    # Fallback to direct env vars if needed
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            creds = Credentials.from_authorized_user_info({
+                "client_id": os.environ['YT_CLIENT_ID'],
+                "client_secret": os.environ['YT_CLIENT_SECRET'],
+                "refresh_token": os.environ['YT_REFRESH_TOKEN'],
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
+            })
+    
+    return build("youtube", "v3", credentials=creds)
+
 def find_viral_streams():
     youtube = build("youtube", "v3", developerKey=os.environ['YT_API_KEY'])
     
@@ -51,7 +76,6 @@ def find_viral_streams():
     
     return viral_streams[:MAX_CREATORS]
 
-# 3. AUTO-CLIPPER WITH CAPTIONS
 def create_short(stream_url):
     print("🎬 Creating Short with captions...")
     
@@ -91,17 +115,8 @@ def create_short(stream_url):
         'final_short.mp4'
     ], check=True)
 
-# 4. VIRAL UPLOAD OPTIMIZER
 def upload_short():
-    creds = Credentials.from_authorized_user_info(info={
-        "client_id": os.environ['YT_CLIENT_ID'],
-        "client_secret": os.environ['YT_CLIENT_SECRET'],
-        "refresh_token": os.environ['YT_REFRESH_TOKEN'],
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
-    })
-    
-    youtube = build("youtube", "v3", credentials=creds)
+    youtube = get_authenticated_service()
     
     # Get creator details
     video_id = os.environ['SOURCE_VIDEO_ID']
