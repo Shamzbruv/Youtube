@@ -6,7 +6,7 @@ on:
 
 jobs:
   clip:
-    runs-on: ubuntu-22.04  # More stable than latest for AI packages
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -18,24 +18,21 @@ jobs:
 
       - name: Install Core Dependencies
         run: |
-          # Install pip packages with retries and individual installations
-          python -m pip install --retries 3 --no-cache-dir yt-dlp>=2023.11.16 || \
-            pip install --retries 3 --no-cache-dir yt-dlp>=2023.11.16
-
           pip install --no-cache-dir \
+            yt-dlp>=2023.11.16 \
             google-api-python-client>=2.104.0 \
+            google-auth-oauthlib>=1.2.0 \
             requests>=2.31.0 \
             openai-whisper>=20231117 \
             transformers>=4.35.2
 
-          # Install torch separately with explicit CPU version
           pip install --no-cache-dir torch>=2.1.0 --index-url https://download.pytorch.org/whl/cpu
 
       - name: Verify Installations
         run: |
           python -c "
           try:
-            import yt_dlp, googleapiclient, requests, whisper, torch, transformers
+            import yt_dlp, googleapiclient, google.auth, requests, whisper, torch, transformers
             print('✅ All core dependencies installed successfully')
           except ImportError as e:
             print(f'❌ Missing dependency: {e}')
@@ -49,7 +46,16 @@ jobs:
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           WHISPER_MODEL: "tiny"
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/credentials.json
         run: |
+          # Create temporary credentials file
+          echo '{
+            "client_id": "$YT_CLIENT_ID",
+            "client_secret": "$YT_CLIENT_SECRET",
+            "refresh_token": "$YT_REFRESH_TOKEN",
+            "type": "authorized_user"
+          }' > $GOOGLE_APPLICATION_CREDENTIALS
+
           python -c "
           try:
             import whisper
@@ -64,3 +70,4 @@ jobs:
         if: always()
         run: |
           rm -f *.mp4 *.srt *.json *.webm *.part
+          rm -f /tmp/credentials.json
