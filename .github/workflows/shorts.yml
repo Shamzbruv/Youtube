@@ -1,0 +1,24 @@
+name: Auto-Gaming Shorts
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Checks every 30 minutes
+  workflow_dispatch:  # Allows manual runs
+
+jobs:
+  clip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  # Gets your code
+      
+      - name: Set Up Tools
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
+          pip install yt-dlp google-api-python-client requests
+          
+      - name: Run Clip Pipeline
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python pipeline.py
