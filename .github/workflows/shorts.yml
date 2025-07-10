@@ -1,7 +1,7 @@
 name: YouTube Shorts Uploader
 on:
   schedule:
-    - cron: '25 14,20 * * *'  # Runs at 2:25PM and 8:25PM UTC daily
+    - cron: '25 14,20 * * *'
   workflow_dispatch:
 
 jobs:
@@ -37,23 +37,27 @@ jobs:
           CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: |
-          echo '{
-            "client_id": "'$CLIENT_ID'",
-            "client_secret": "'$CLIENT_SECRET'",
-            "refresh_token": "'$REFRESH_TOKEN'",
+          # Create JSON file with proper formatting
+          cat > credentials.json << 'EOF'
+          {
+            "client_id": "$CLIENT_ID",
+            "client_secret": "$CLIENT_SECRET",
+            "refresh_token": "$REFRESH_TOKEN",
             "type": "authorized_user",
             "token_uri": "https://oauth2.googleapis.com/token",
             "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
-          }' > credentials.json
+          }
+          EOF
+          
+          # Verify JSON is valid
+          python -c "import json; json.load(open('credentials.json')); print('✅ JSON is valid')"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/credentials.json" >> $GITHUB_ENV
 
       - name: Run YouTube uploader
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials.json
-        run: |
-          python -c "import json; print('Credentials file exists:', open('credentials.json').read())"
-          python pipeline.py
+        run: python pipeline.py
 
       - name: Clean up
         if: always()
