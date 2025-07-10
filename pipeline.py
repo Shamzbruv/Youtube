@@ -2,19 +2,19 @@ import os
 import json
 import random
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.auth.transport.requests import Request
 
-# 1. OPTIMAL SHORTS SETTINGS
-CLIP_DURATION = 27  # 15-35s performs best (27s ideal)
-MAX_CREATORS = 5    # Track top 5 creators
-POST_TIMES = [14, 20]  # 2PM & 8PM UTC (best posting times)
+# Configuration
+CLIP_DURATION = 27
+MAX_CREATORS = 5
+POST_TIMES = [14, 20]  # 2PM and 8PM UTC
 
 def get_authenticated_service():
-    """Handle authentication with proper credential refresh"""
+    """Handles authentication with proper credential refresh"""
     creds = None
     
     # Try to load from environment credentials first
