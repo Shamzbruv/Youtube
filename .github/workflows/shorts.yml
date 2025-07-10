@@ -1,39 +1,50 @@
 name: Auto-Gaming Shorts Pro
 on:
   schedule:
-    - cron: '25 14,20 * * *'  # 2:25PM & 8:25PM UTC (optimal posting times)
+    - cron: '25 14,20 * * *'  # 2:25PM & 8:25PM UTC
   workflow_dispatch:
 
 jobs:
   clip:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # More stable than latest for AI packages
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install AI Tools
+      - name: Set Up System
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ffmpeg python3-pip
-          pip install --upgrade pip
-          pip install yt-dlp==2023.11.16 \
-                      openai-whisper==20231117 \
-                      google-api-python-client==2.104.0 \
-                      requests==2.31.0 \
-                      torch==2.1.0 \
-                      transformers==4.35.2
+          sudo apt-get install -y ffmpeg python3-pip libpython3-dev
+          python -m pip install --upgrade pip wheel setuptools
 
-      - name: Run Viral Clip Pipeline
+      - name: Install Core Dependencies
+        run: |
+          pip install --no-cache-dir \
+            yt-dlp>=2023.11.16 \
+            google-api-python-client>=2.104.0 \
+            requests>=2.31.0 \
+            openai-whisper>=20231117 \
+            torch>=2.1.0 --index-url https://download.pytorch.org/whl/cpu \
+            transformers>=4.35.2
+
+      - name: Run Pipeline
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-          WHISPER_MODEL: "tiny"  # Fastest model that still works well
+          WHISPER_MODEL: "tiny"
         run: |
-          python -c "import whisper; whisper.load_model('$WHISPER_MODEL')"  # Pre-download model
+          python -c "
+          try:
+            import whisper
+            whisper.load_model('$WHISPER_MODEL')
+          except Exception as e:
+            print(f'⚠️ Whisper init failed: {e}')
+            exit(1)
+          "
           python pipeline.py
 
       - name: Clean Up
         if: always()
         run: |
-          rm -f *.mp4 *.srt *.json  # Remove temporary files
+          rm -f *.mp4 *.srt *.json *.webm *.part
