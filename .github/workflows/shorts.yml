@@ -1,8 +1,8 @@
 name: YouTube Shorts Uploader
 on:
   schedule:
-    - cron: '25 14,20 * * *'  # Runs at 2:25PM and 8:25PM UTC daily
-  workflow_dispatch:  # Allows manual runs
+    - cron: '25 14,20 * * *'  # 2:25PM and 8:25PM UTC
+  workflow_dispatch:
 
 jobs:
   upload-short:
@@ -39,15 +39,18 @@ jobs:
         run: |
           echo '{
             "client_id": "'"$CLIENT_ID"'",
-            "client_secret": "'"$CLIENT_SECRET"'", 
+            "client_secret": "'"$CLIENT_SECRET"'",
             "refresh_token": "'"$REFRESH_TOKEN"'",
             "type": "authorized_user",
-            "token_uri": "https://oauth2.googleapis.com/token"
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
           }' > credentials.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/credentials.json" >> $GITHUB_ENV
 
       - name: Run YouTube uploader
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials.json
         run: python pipeline.py
 
       - name: Clean up
