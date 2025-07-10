@@ -15,18 +15,13 @@ POST_TIMES = [14, 20]  # 2PM and 8PM UTC
 
 def get_authenticated_service():
     """Handles authentication with proper credential refresh"""
-    creds = None
-    
-    # Try to load from environment credentials first
-    if os.path.exists(os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', '')):
-        with open(os.environ['GOOGLE_APPLICATION_CREDENTIALS']) as f:
-            creds_info = json.load(f)
-            creds = Credentials.from_authorized_user_info(creds_info)
-    
-    # Fallback to direct env vars if needed
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
+    try:
+        # Try to load from environment credentials first
+        creds_file = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+        if creds_file and os.path.exists(creds_file):
+            with open(creds_file) as f:
+                creds_info = json.load(f)
+                creds = Credentials.from_authorized_user_info(creds_info)
         else:
             creds = Credentials.from_authorized_user_info({
                 "client_id": os.environ['YT_CLIENT_ID'],
@@ -35,8 +30,15 @@ def get_authenticated_service():
                 "token_uri": "https://oauth2.googleapis.com/token",
                 "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
             })
+        
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        
+        return build("youtube", "v3", credentials=creds)
     
-    return build("youtube", "v3", credentials=creds)
+    except Exception as e:
+        print(f"❌ Authentication failed: {str(e)}")
+        raise
 
 def find_viral_streams():
     youtube = build("youtube", "v3", developerKey=os.environ['YT_API_KEY'])
