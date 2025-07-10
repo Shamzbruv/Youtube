@@ -42,18 +42,19 @@ jobs:
       - name: Run Pipeline
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}  # From your client_secret.json
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}  # From your client_secret.json
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           WHISPER_MODEL: "tiny"
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/credentials.json
         run: |
-          # Create temporary credentials file
+          # Create properly formatted credentials file
           echo '{
             "client_id": "$YT_CLIENT_ID",
             "client_secret": "$YT_CLIENT_SECRET",
             "refresh_token": "$YT_REFRESH_TOKEN",
-            "type": "authorized_user"
+            "type": "authorized_user",
+            "token_uri": "https://oauth2.googleapis.com/token"
           }' > $GOOGLE_APPLICATION_CREDENTIALS
 
           python -c "
