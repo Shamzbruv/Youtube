@@ -1,24 +1,39 @@
-name: Auto-Gaming Shorts
+name: Auto-Gaming Shorts Pro
 on:
   schedule:
-    - cron: '*/30 * * * *'  # Checks every 30 minutes
-  workflow_dispatch:  # Allows manual runs
+    - cron: '25 14,20 * * *'  # 2:25PM & 8:25PM UTC (optimal posting times)
+  workflow_dispatch:
 
 jobs:
   clip:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4  # Gets your code
-      
-      - name: Set Up Tools
+      - uses: actions/checkout@v4
+
+      - name: Install AI Tools
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ffmpeg
-          pip install yt-dlp google-api-python-client requests
-          
-      - name: Run Clip Pipeline
+          sudo apt-get install -y ffmpeg python3-pip
+          pip install --upgrade pip
+          pip install yt-dlp==2023.11.16 \
+                      openai-whisper==20231117 \
+                      google-api-python-client==2.104.0 \
+                      requests==2.31.0 \
+                      torch==2.1.0 \
+                      transformers==4.35.2
+
+      - name: Run Viral Clip Pipeline
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: python pipeline.py
+          WHISPER_MODEL: "tiny"  # Fastest model that still works well
+        run: |
+          python -c "import whisper; whisper.load_model('$WHISPER_MODEL')"  # Pre-download model
+          python pipeline.py
+
+      - name: Clean Up
+        if: always()
+        run: |
+          rm -f *.mp4 *.srt *.json  # Remove temporary files
