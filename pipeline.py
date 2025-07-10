@@ -1,88 +1,89 @@
 import os
 import json
 import requests
-import subprocess
-from datetime import timedelta
-from google.oauth2.credentials import Credentials
+from datetime import datetime
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
-# 1. TOP GAMING STREAM FINDER
-def find_trending_streams():
-    print("🎮 Finding top gaming streams...")
-    
+# 1. ENHANCED CREATOR CREDIT SYSTEM
+def get_creator_details(video_id):
     youtube = build("youtube", "v3", developerKey=os.environ['YT_API_KEY'])
     
-    # Get trending live streams from top creators
-    channels = [
-        "UCX6OQ3DkcsbYNE6H8uQQuVA",  # MrBeast
-        "UC9Z-xXb0tzX2FSCSDEnJ8eQ",  # iShowSpeed
-        "UCYzPXWLvlOIdkpf5-a6s8rA",  # CaseOh
-        "UCBJycsmduvYEL83R_U4JriQ",  # Mongraal
-        "UCiP6wD_tYlYLYh3agzbByWQ"   # TypicalGamer
-    ]
+    # Get video details
+    video = youtube.videos().list(
+        part="snippet,statistics",
+        id=video_id
+    ).execute()["items"][0]
     
-    live_streams = []
-    for channel_id in channels:
-        streams = youtube.search().list(
-            part="snippet",
-            channelId=channel_id,
-            eventType="live",
-            type="video",
-            maxResults=1
-        ).execute()
-        
-        if streams.get('items'):
-            stream_id = streams['items'][0]['id']['videoId']
-            live_streams.append(f"https://youtube.com/watch?v={stream_id}")
+    # Get channel details
+    channel = youtube.channels().list(
+        part="snippet,statistics",
+        id=video["snippet"]["channelId"]
+    ).execute()["items"][0]
     
-    return live_streams[:3]  # Return top 3 found streams
+    return {
+        "channel_name": channel["snippet"]["title"],
+        "channel_url": f"https://youtube.com/channel/{channel['id']}",
+        "subscribers": f"{int(channel['statistics']['subscriberCount']):,}",
+        "original_video_url": f"https://youtu.be/{video_id}",
+        "creator_thumbnail": channel["snippet"]["thumbnails"]["high"]["url"],
+        "view_count": f"{int(video['statistics']['viewCount']):,}",
+        "likes": f"{int(video['statistics'].get('likeCount', 0)):,}"
+    }
 
-# 2. AUTO-CLIPPER (Improved for gaming content)
-def create_clip(stream_url):
-    print("🎥 Creating clip...")
+# 2. VIRAL OPTIMIZED DESCRIPTION GENERATOR
+def generate_description(creator):
+    return f"""🔥 {creator['channel_name']} JUST DROPPED THIS INSANE CLIP! 🔥
+
+📺 Watch the FULL video: {creator['original_video_url']}
+✅ Subscribe: {creator['channel_url']} ({creator['subscribers']} subs)
+
+💬 COMMENT below what you think!
+👍 LIKE if you want more clips like this!
+🔔 TURN ON POST NOTIFICATIONS!
+
+📌 #shorts #{creator['channel_name'].replace(' ','')} #viral #trending #gaming #clips
+
+⚠️ All rights belong to {creator['channel_name']}
+This is an automated highlight clip."""
+
+# 3. UPDATED UPLOAD FUNCTION
+def upload_short():
+    creds = Credentials.from_authorized_user_info(info={
+        "client_id": os.environ['YT_CLIENT_ID'],
+        "client_secret": os.environ['YT_CLIENT_SECRET'],
+        "refresh_token": os.environ['YT_REFRESH_TOKEN'],
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
+    })
     
-    # Download most engaging 5 mins (analyzes chat/audio)
-    subprocess.run(
-        f"yt-dlp -f best --download-sections '*00:02:00-00:07:00' "
-        f"--write-info-json -o 'content' {stream_url}",
-        shell=True, check=True
+    youtube = build("youtube", "v3", credentials=creds)
+    
+    # Get creator details before upload
+    video_id = STREAM_URL.split("v=")[1].split("&")[0]
+    creator = get_creator_details(video_id)
+    
+    request = youtube.videos().insert(
+        part="snippet,status",
+        body={
+            "snippet": {
+                "title": f"🔥 {creator['channel_name']} DID THIS! #shorts",
+                "description": generate_description(creator),
+                "tags": [
+                    "shorts", creator['channel_name'].lower().replace(" ", ""),
+                    "gaming", "viral", "trending", "clips",
+                    "live", "stream", "highlight"
+                ],
+                "categoryId": "20"  # Gaming category
+            },
+            "status": {
+                "privacyStatus": "public",
+                "selfDeclaredMadeForKids": False,
+                "embeddable": True
+            },
+        },
+        media_body=MediaFileUpload("short.mp4")
     )
-    
-    # Find peak moment (simplified gaming-focused logic)
-    with open('content.info.json') as f:
-        metadata = json.load(f)
-        
-    # Prefer moments with: high viewer count + like ratio
-    best_moment = "00:03:30"  # Fallback to typical highlight time
-    
-    if metadata.get('heatmap'):
-        best_moment = max(metadata['heatmap'], key=lambda x: x['intensity'])['time']
-    
-    return best_moment
+    response = request.execute()
+    print(f"✅ Uploaded! Video ID: {response['id']}")
 
-# [Keep your existing make_short() and upload_short() functions]
-
-if __name__ == "__main__":
-    try:
-        # 1. Find trending gaming streams
-        streams = find_trending_streams()
-        if not streams:
-            print("No live gaming streams found from top creators")
-            exit()
-            
-        selected_stream = streams[0]  # Pick the first found stream
-        
-        # 2. Auto-detect best clip moment
-        CLIP_START = create_clip(selected_stream)
-        CLIP_DURATION = 58  # Perfect Shorts length
-        STREAM_URL = selected_stream
-        
-        # 3. Process and upload
-        download_stream()
-        make_short()
-        upload_short()
-        
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
-        raise
+# [Keep your existing find_trending_streams(), create_clip(), etc.]
