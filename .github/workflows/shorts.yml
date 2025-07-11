@@ -20,7 +20,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg streamlink
+          sudo apt-get install -y ffmpeg
 
       - name: Install Python packages
         run: |
@@ -52,12 +52,9 @@ jobs:
       - name: Run YouTube uploader
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
-          YT_COOKIES: ${{ secrets.YT_COOKIES }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials.json
-        run: |
-          echo "$YT_COOKIES" > youtube.com_cookies.txt
-          python pipeline.py
+        run: python pipeline.py
 
       - name: Clean up
         if: always()
-        run: rm -f *.mp4 *.srt *.json credentials.json youtube.com_cookies.txt
+        run: rm -f *.mp4 *.srt *.json credentials.json
