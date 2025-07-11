@@ -1,7 +1,7 @@
 name: YouTube Shorts Uploader
 on:
   schedule:
-    - cron: '25 14,20 * * *'
+    - cron: '25 14,20 * * *'  # 2:25PM and 8:25PM UTC
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg streamlink
 
       - name: Install Python packages
         run: |
@@ -37,7 +37,6 @@ jobs:
           CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
         run: |
-          # Create JSON file with proper formatting
           cat > credentials.json << 'EOF'
           {
             "client_id": "$CLIENT_ID",
@@ -48,17 +47,17 @@ jobs:
             "scopes": ["https://www.googleapis.com/auth/youtube.upload"]
           }
           EOF
-          
-          # Verify JSON is valid
-          python -c "import json; json.load(open('credentials.json')); print('✅ JSON is valid')"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/credentials.json" >> $GITHUB_ENV
 
       - name: Run YouTube uploader
         env:
           YT_API_KEY: ${{ secrets.YT_API_KEY }}
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials.json
-        run: python pipeline.py
+        run: |
+          echo "$YT_COOKIES" > youtube.com_cookies.txt
+          python pipeline.py
 
       - name: Clean up
         if: always()
-        run: rm -f *.mp4 *.srt *.json credentials.json
+        run: rm -f *.mp4 *.srt *.json credentials.json youtube.com_cookies.txt
