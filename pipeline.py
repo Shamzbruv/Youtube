@@ -33,37 +33,26 @@ def get_youtube_service(api_key=None):
     return build("youtube", "v3", credentials=creds)
 
 def download_video(video_url):
-    """Download video segment with multiple fallback methods."""
-    methods = [
-        # Method 1: yt-dlp with cookies
-        lambda: subprocess.run([
+    """Download video segment with retries and throttling."""
+    try:
+        # Random delay to avoid detection
+        time.sleep(random.uniform(1.5, 3.5))
+        
+        # Use yt-dlp with mobile user agent
+        subprocess.run([
             'yt-dlp',
-            '--cookies', 'youtube.com_cookies.txt',
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            '--user-agent', 'Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+            '--throttled-rate', '100K',  # Limit download speed
             '--download-sections', f'*00:00:00-00:00:{CLIP_DURATION}',
             '-f', 'best[height<=720]',
             '-o', 'raw_clip',
             video_url
-        ], check=True),
-        
-        # Method 2: streamlink fallback
-        lambda: subprocess.run([
-            'streamlink',
-            '--hls-duration', f'00:00:{CLIP_DURATION}',
-            '--output', 'raw_clip.mp4',
-            video_url,
-            'best'
         ], check=True)
-    ]
-    
-    for attempt, method in enumerate(methods, 1):
-        try:
-            time.sleep(random.randint(2, 5))  # Random delay
-            return method()
-        except Exception as e:
-            print(f"Attempt {attempt} failed: {e}")
-            if attempt == len(methods):
-                raise Exception("All download methods failed")
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️ Download failed: {e}")
+        return False
 
 def find_trending_videos():
     """Fetch currently trending gaming videos."""
@@ -93,7 +82,8 @@ def create_short(video_url):
     
     try:
         # 1. Download
-        download_video(video_url)
+        if not download_video(video_url):
+            raise Exception("Download failed after retries")
         
         # 2. Generate captions
         subprocess.run([
